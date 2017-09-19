@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type Track struct {
@@ -12,6 +13,27 @@ type Track struct {
 	Artist string
 	Album  string
 	Uri    string
+}
+
+func (t Track) String() string {
+	s := []string{}
+	if t.Title != "" {
+		s = append(s, t.Title)
+	}
+	if t.Artist != "" {
+		s = append(s, t.Artist)
+	}
+	if t.Album != "" {
+		s = append(s, t.Album)
+	}
+	if t.Uri != "" {
+		s = append(s, t.Uri)
+	}
+	return strings.Join(s, " – ")
+}
+
+func (t Track) Privmsg(target string) IrcMessage {
+	return IrcMessage{Command: "PRIVMSG", Params: []string{target, fmt.Sprintf(":%v", t.String())}}
 }
 
 type Mpc struct {
@@ -75,4 +97,31 @@ func (m Mpc) Playlist() ([]Track, error) {
 		i++
 	}
 	return p, nil
+}
+
+func (m Mpc) IdleWatcher(outp chan<- IrcMessage) {
+	c, e := m.Current()
+	for e != nil {
+		log.Print(e)
+		time.Sleep(15*time.Second)
+		c, e = m.Current()
+	}
+	for {
+		e = m.baseCommand("idle").Run()
+		if e != nil {
+			log.Print(e)
+			time.Sleep(15*time.Second)
+		} else {
+			cc, e := m.Current()
+			if e != nil {
+				log.Print(e)
+				time.Sleep(15*time.Second)
+			} else {
+				if cc.String() != c.String() {
+					outp <- cc.Privmsg(CHANNEL_NAME)
+					c = cc
+				}
+			}
+		}
+	}
 }

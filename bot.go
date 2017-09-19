@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 )
 
 const BOT_NAME = "WhatItSaysOnTheBox"
@@ -14,7 +13,6 @@ const CHANNEL_NAME = "#WhatItSaysOnTheBox"
 const SERVER_ADDRESS = "irc.pirc.pl:6697"
 
 type IrcMessage struct {
-	fmt.Stringer
 	Prefix  string
 	Command string
 	Params  []string
@@ -70,6 +68,7 @@ func bot(inp <-chan IrcMessage, outp chan<- IrcMessage) {
 	registered := false
 	inside := false
 	m := NewMpc()
+	go m.IdleWatcher(outp)
 	for {
 		msg := <-inp
 		if !registered {
@@ -99,17 +98,11 @@ func bot(inp <-chan IrcMessage, outp chan<- IrcMessage) {
 				if e != nil {
 					log.Print(e)
 				}
-				time.Sleep(200 * time.Millisecond)
-				msg.Params[1] = ":mpc current"
-				fallthrough
 			case ":mpc previous":
 				e := m.Previous()
 				if e != nil {
 					log.Print(e)
 				}
-				time.Sleep(200 * time.Millisecond)
-				msg.Params[1] = ":mpc current"
-				fallthrough
 			case ":mpc current":
 				c, e := m.Current()
 				if e != nil {
